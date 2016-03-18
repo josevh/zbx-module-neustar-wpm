@@ -186,8 +186,11 @@ char *getLastStatus(const char *curl_ret)
     cJSON * json_data = cJSON_GetObjectItem(json_root,"data");
     cJSON * json_items = cJSON_GetObjectItem(json_data,"items");
     cJSON * json_items_child = cJSON_GetArrayItem(json_items, 0);
-    return cJSON_GetObjectItem(json_items_child, "lastSampleStatus")->valuestring;
-
+    if (cJSON_GetObjectItem(json_items_child, "status")->valuestring != "Active") {
+        return cJSON_GetObjectItem(json_items_child, "lastSampleStatus")->valuestring;
+    } else {
+        return "INACTIVE";
+    }
 }
 
 void *makeURL(char* fullURL, const char api_key[], const char api_secret[], const char service[], const char method[])
