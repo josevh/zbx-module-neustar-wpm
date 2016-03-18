@@ -1,5 +1,11 @@
 # Zabbix Loadable Module for Neustar Web Performance Monitoring
-> Tested on Zabbix 2.4.4 compiled against 2.4.7 sources
+> Tested on Zabbix 2.4.4 compiled against 2.4.7 sources.
+
+> Currently, returns monitor statuses only. That is the only data retrieved for now. No other retrieval of data yet implemented but should be trivial using already defined methods.
+
+> Not a `C` programmer. Forgive sloppy code and missing doc blocks. WIP.
+
+> *Help is welcome*.
 
 ### Requirements
 - Monitor *descriptions* must contain a unique string to be identified.
