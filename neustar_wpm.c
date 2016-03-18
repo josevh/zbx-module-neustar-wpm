@@ -1,7 +1,14 @@
 #include "sysinc.h"
 #include "module.h"
 // wpm module includes
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <curl/curl.h>
+#include <string.h>     //strcat
+#include <openssl/md5.h>
+#include "cJSON.h"
+#include <unistd.h>
 
 /* the variable keeps timeout setting for item processing */
 static int	item_timeout = 0;
