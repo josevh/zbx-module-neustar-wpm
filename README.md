@@ -1,4 +1,6 @@
 # Zabbix Loadable Module for Neustar Web Performance Monitoring
+> Tested on Zabbix 2.4.4 compiled against 2.4.7 sources
+
 ### Requirements
 - Monitor *descriptions* must contain a unique string to be identified.
   - **my.unique.monitor**
