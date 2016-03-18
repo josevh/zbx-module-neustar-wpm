@@ -81,22 +81,44 @@ ZBX_METRIC	*zbx_module_item_list()
 
 int	zbx_module_neustar_monitor_status(AGENT_REQUEST *request, AGENT_RESULT *result)
 {
-	char	*key, *secret, *monitor;
+	char	*api_key, *api_secret, *monitor_key;
 
 	if (3 != request->nparam)
 	{
-		/* set optional error message */
 		SET_MSG_RESULT(result, strdup("Invalid number of parameters."));
 		return SYSINFO_RET_FAIL;
 	}
 
-	key = get_rparam(request, 0);
-	secret = get_rparam(request, 1);
-	monitor = get_rparam(request, 2);
+	api_key = get_rparam(request, 0);
+	api_secret = get_rparam(request, 1);
+	monitor_key = get_rparam(request, 2);
 
-	// SET_STR_RESULT(result, strdup(param));
+    char service[] = "/monitor";
+    char method[] = "";
+    char monitorURL[150];
+    makeURL(monitorURL, api_key, api_secret, service, method);
 
-	return SYSINFO_RET_OK;
+    char *monitors;
+    monitors = httpGet(monitorURL);
+
+    if (strcmp("CURL_ERROR", monitors) != 0) {
+        char *monitor_id = getMonitorID(monitors, monitor_key, monitor_id);
+        char method2[50];
+        strcpy(method2, "/");
+        strcat(method2, monitor_id);
+        strcat(method2, "/summary");
+        char summaryURL[150];
+        makeURL(summaryURL, api_key, api_secret, service, method2);
+
+        char *summary;
+        summary = httpGet(summaryURL);
+        if (strcmp("CURL_ERROR", summary) != 0) {
+			SET_STR_RESULT(result, getLastStatus(summary)));
+			return SYSINFO_RET_OK;
+        }
+    }
+	SET_MSG_RESULT(result, strdup("Unable to communicate with Neustar successfully."));
+	return SYSINFO_RET_FAIL;
 }
 
 /******************************************************************************
