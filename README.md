@@ -24,9 +24,9 @@
 6. Restart zabbix server/agent/etc.
 7. On zabbix host, add simple item with key:
    - `neustar_wpm.monitor_status[param1, param2, param3]`
-     - param1: Neuster WPM API Key
-     - param2: Neustar WPM API secret
-     - param3: Unique monitor identifier in description field of monitor
+     - **param1**: Neuster WPM API Key
+     - **param2**: Neustar WPM API secret
+     - **param3**: Unique monitor identifier in description field of monitor
 
 ### Return values
 
