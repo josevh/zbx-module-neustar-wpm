@@ -113,7 +113,7 @@ int	zbx_module_neustar_monitor_status(AGENT_REQUEST *request, AGENT_RESULT *resu
         char *summary;
         summary = httpGet(summaryURL);
         if (strcmp("CURL_ERROR", summary) != 0) {
-			SET_STR_RESULT(result, getLastStatus(summary)));
+			SET_STR_RESULT(result, getLastStatus(summary));
 			return SYSINFO_RET_OK;
         }
     }
