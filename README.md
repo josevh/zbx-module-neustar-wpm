@@ -17,7 +17,7 @@
  - [cURL](https://curl.haxx.se/libcurl/c/)
    - `#include <curl/curl.h>`
 ### Installation (for server)
-1. Clone to modules dir of zabbix source
+1. Clone repo to modules dir of zabbix source
     - `zabbix_src_dir/src/modules`
 2. Make sure that you configure zabbix_src at its root
    - `./configure --enable-static`
@@ -30,11 +30,16 @@
    - `LoadModulePath=/usr/lib/zabbix/modules`
    - `LoadModule=neustar_wpm.so`
 6. Restart zabbix server/agent/etc.
-7. On zabbix host, add simple item with key:
-   - `neustar_wpm.monitor_status[param1, param2, param3]`
-     - **param1**: Neuster WPM API Key
-     - **param2**: Neustar WPM API secret
-     - **param3**: Unique monitor identifier in description field of monitor
+7. On zabbix host, add simple item:
+   - Key:
+     - `neustar_wpm.monitor_status[param1, param2, param3]`
+       - **param1**: Neuster WPM API Key
+       - **param2**: Neustar WPM API secret
+       - **param3**: Unique monitor identifier in description field of monitor
+   - Data type:
+     - Numeric (unsigned)
+   - Interval:
+     - Same as update interval of monitor in WPM
 
 ### Return values
 
