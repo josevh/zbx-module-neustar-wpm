@@ -20,12 +20,12 @@
      - `/usr/lib/zabbix/modules`
 5. Update your zabbix config
    - `LoadModulePath=/usr/lib/zabbix/modules`
-   - `LoadModule=vmbix.so`
+   - `LoadModule=neustar_wpm.so`
 6. Restart zabbix server/agent/etc.
 7. On zabbix host, add simple item with key:
    - `neustar_wpm.monitor_status[param1, param2, param3]`
      - **param1**: Neuster WPM API Key
-     - **param2**: Neustar WPM API Secret
+     - **param2**: Neustar WPM API secret
      - **param3**: Unique monitor identifier in description field of monitor
 
 ### Return values
@@ -36,3 +36,8 @@
 | 1             | SUCCESS       |
 | 2             | WARNING       |
 | 3             | ERROR         |
+
+### Caveats
+1. Monitor intervals are varied in WPM. Currently, module is unable to compare whether last sample value received from WPM is same as the last value zabbix received. Therefore, there is room for inaccuracy.
+   - To mitigate, zabbix item check intervals should be set to match WPM monitoring intervals. However, WPM may run monitor scripts consecutively after an error in less time than the interval set. There is a good chance that Zabbix may miss or incorrectly determine whether a monitor is actively alerting.
+   - If unacceptable, a good solution is to run an external script, instead of using a module, with a small sqlite db that stores the last sample id and compares before sending update to zabbix.
