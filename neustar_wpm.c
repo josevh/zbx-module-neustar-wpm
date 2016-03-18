@@ -111,7 +111,20 @@ int	zbx_module_neustar_monitor_status(AGENT_REQUEST *request, AGENT_RESULT *resu
         char *summary;
         summary = httpGet(summaryURL);
         if (strcmp("CURL_ERROR", summary) != 0) {
-			SET_STR_RESULT(result, getLastStatus(summary));
+			char status[16];
+            strcpy(status, getLastStatus(summary));
+            if (strcmp(status, "SUCCESS") == 0) {
+				SET_UI64_RESULT(result, 1);
+            } else if (strcmp(status, "WARNING") == 0) {
+                SET_UI64_RESULT(result, 2);
+            } else if (strcmp(status, "ERROR") == 0) {
+                SET_UI64_RESULT(result, 3);
+            } else if (strcmp(status, "INACTIVE") == 0) {
+                SET_UI64_RESULT(result, 0);
+            } else {
+				SET_MSG_RESULT(result, strdup("Unexpected return from Neustar."));
+				return SYSINFO_RET_FAIL;
+            }
 			return SYSINFO_RET_OK;
         }
     }
