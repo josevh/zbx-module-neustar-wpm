@@ -25,9 +25,7 @@ void makeSig(const char api_key[], const char api_secret[], char *signature);
 /* the variable keeps timeout setting for item processing */
 static int	item_timeout = 0;
 
-int	zbx_module_neustar_wpm_ping(AGENT_REQUEST *request, AGENT_RESULT *result);
-int	zbx_module_neustar_wpm_echo(AGENT_REQUEST *request, AGENT_RESULT *result);
-int	zbx_module_neustar_wpm_random(AGENT_REQUEST *request, AGENT_RESULT *result);
+int	zbx_module_neustar_monitor_status(AGENT_REQUEST *request, AGENT_RESULT *result);
 
 static ZBX_METRIC keys[] =
 /*      KEY                     FLAG		FUNCTION        	TEST PARAMETERS */
