@@ -101,31 +101,35 @@ int	zbx_module_neustar_monitor_status(AGENT_REQUEST *request, AGENT_RESULT *resu
 
     if (strcmp("CURL_ERROR", monitors) != 0) {
         char *monitor_id = getMonitorID(monitors, monitor_key, monitor_id);
-        char method2[50];
-        strcpy(method2, "/");
-        strcat(method2, monitor_id);
-        strcat(method2, "/summary");
-        char summaryURL[150];
-        makeURL(summaryURL, api_key, api_secret, service, method2);
+        if (strcmp(monitor_id, "JSON_FAILURE") != 0) {
+            char method2[50];
+            strcpy(method2, "/");
+            strcat(method2, monitor_id);
+            strcat(method2, "/summary");
+            char summaryURL[150];
+            makeURL(summaryURL, api_key, api_secret, service, method2);
 
-        char *summary;
-        summary = httpGet(summaryURL);
-        if (strcmp("CURL_ERROR", summary) != 0) {
-			char status[16];
-            strcpy(status, getLastStatus(summary));
-            if (strcmp(status, "SUCCESS") == 0) {
-				SET_UI64_RESULT(result, 1);
-            } else if (strcmp(status, "WARNING") == 0) {
-                SET_UI64_RESULT(result, 2);
-            } else if (strcmp(status, "ERROR") == 0) {
-                SET_UI64_RESULT(result, 3);
-            } else if (strcmp(status, "INACTIVE") == 0) {
-                SET_UI64_RESULT(result, 0);
-            } else {
-				SET_MSG_RESULT(result, strdup("Unexpected return from Neustar."));
-				return SYSINFO_RET_FAIL;
+            char *summary;
+            summary = httpGet(summaryURL);
+            if (strcmp("CURL_ERROR", summary) != 0) {
+                char status[16];
+                strcpy(status, getLastStatus(summary));
+                if (strcmp(status, "JSON_FAILURE") != 0) {
+                    if (strcmp(status, "SUCCESS") == 0) {
+                        SET_UI64_RESULT(result, 1);
+                    } else if (strcmp(status, "WARNING") == 0) {
+                        SET_UI64_RESULT(result, 2);
+                    } else if (strcmp(status, "ERROR") == 0) {
+                        SET_UI64_RESULT(result, 3);
+                    } else if (strcmp(status, "INACTIVE") == 0) {
+                        SET_UI64_RESULT(result, 0);
+                    } else {
+                        SET_MSG_RESULT(result, strdup("Unexpected return from Neustar."));
+                        return SYSINFO_RET_FAIL;
+                    }
+                    return SYSINFO_RET_OK;
+                }
             }
-			return SYSINFO_RET_OK;
         }
     }
 	SET_MSG_RESULT(result, strdup("Unable to communicate with Neustar successfully."));
@@ -196,13 +200,17 @@ void makeSig(const char api_key[], const char api_secret[], char *signature)
 char *getLastStatus(const char *curl_ret)
 {
     cJSON * json_root = cJSON_Parse(curl_ret);
-    cJSON * json_data = cJSON_GetObjectItem(json_root,"data");
-    cJSON * json_items = cJSON_GetObjectItem(json_data,"items");
-    cJSON * json_items_child = cJSON_GetArrayItem(json_items, 0);
-    if (cJSON_GetObjectItem(json_items_child, "status")->valuestring != "Active") {
-        return cJSON_GetObjectItem(json_items_child, "lastSampleStatus")->valuestring;
+    if (!json_root) {
+        return "JSON_FAILURE";
     } else {
-        return "INACTIVE";
+        cJSON * json_data = cJSON_GetObjectItem(json_root,"data");
+        cJSON * json_items = cJSON_GetObjectItem(json_data,"items");
+        cJSON * json_items_child = cJSON_GetArrayItem(json_items, 0);
+        if (cJSON_GetObjectItem(json_items_child, "status")->valuestring != "Active") {
+            return cJSON_GetObjectItem(json_items_child, "lastSampleStatus")->valuestring;
+        } else {
+            return "INACTIVE";
+        }
     }
 }
 
@@ -211,7 +219,6 @@ void *makeURL(char* fullURL, const char api_key[], const char api_secret[], cons
     char sig[100];
     makeSig(api_key, api_secret, sig);
     // prep url
-    // char *fullURL;
     const char baseURL[] = "http://api.neustar.biz/performance";
     const char version[] = "/1.0";
     strcpy(fullURL, baseURL);
@@ -222,32 +229,36 @@ void *makeURL(char* fullURL, const char api_key[], const char api_secret[], cons
     strcat(fullURL, api_key);
     strcat(fullURL, "&sig=");
     strcat(fullURL, sig);
-    // return fullURL;
 }
 
 char *getMonitorID(const char *curl_ret, const char *key, char *monitor_id)
 {
-    monitor_id = "NULL";    //TODO: better error detection
-
     cJSON * json_root = cJSON_Parse(curl_ret);
-    cJSON * json_data = cJSON_GetObjectItem(json_root,"data");
-    cJSON * json_items = cJSON_GetObjectItem(json_data,"items");
-    cJSON * json_items_child = cJSON_GetArrayItem(json_items, 0);
-    while (json_items) {
-        cJSON *monitor = json_items->child;
-        while (monitor) {
-            if (cJSON_GetObjectItem(monitor, "description")) {
-                if (strcmp(cJSON_GetObjectItem(monitor, "description")->valuestring, key) == 0) {
-                    monitor_id = cJSON_GetObjectItem(monitor, "id")->valuestring;
-                    break;
+    if (!json_root) {
+        return "JSON_FAILURE";
+    } else {
+        cJSON * json_data = cJSON_GetObjectItem(json_root,"data");
+        cJSON * json_items = cJSON_GetObjectItem(json_data,"items");
+        cJSON * json_items_child = cJSON_GetArrayItem(json_items, 0);
+        while (json_items) {
+            cJSON *monitor = json_items->child;
+            while (monitor) {
+                if (cJSON_GetObjectItem(monitor, "description")) {
+                    if (strcmp(cJSON_GetObjectItem(monitor, "description")->valuestring, key) == 0) {
+                        monitor_id = cJSON_GetObjectItem(monitor, "id")->valuestring;
+                        break;
+                    }
                 }
+                monitor = monitor->next;
             }
-            monitor = monitor->next;
+            if (strcmp(monitor_id, "NULL") == 0) {
+                json_items = json_items->next;
+            } else {
+                break;
+            }
         }
-        json_items = json_items->next;
+        return monitor_id;
     }
-
-    return monitor_id;
 }
 
 char *httpGet(const char *url)
