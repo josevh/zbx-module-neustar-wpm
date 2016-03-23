@@ -10,17 +10,20 @@
 #include "cJSON.h"
 #include <unistd.h>
 
+ //TODO: Dynamic allocation of char arrays
+
 // neustar_wpm module declarations
 struct MemoryStruct {
     char *memory;
     size_t size;
 };
 static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp);
-char *httpGet(const char*);
-char *getMonitorID(const char *curl_ret, const char *key, char *monitor_id);
-void *makeURL(char* fullURL, const char api_key[], const char api_secret[], const char service[], const char method[]);
-char *getLastStatus(const char *curl_ret);
+void httpGet(const char* url, char* curl_ret);
+void getMonitorID(const char *curl_ret, const char *key, char *monitor_id);
+void makeURL(char* fullURL, const char api_key[], const char api_secret[], const char service[], const char method[]);
+void getLastStatus(const char *curl_ret, char* status);
 void makeSig(const char api_key[], const char api_secret[], char *signature);
+int monitor_status(const char api_key[], const char api_secret[], const char monitor_key[]);
 
 /* the variable keeps timeout setting for item processing */
 static int	item_timeout = 0;
@@ -93,27 +96,28 @@ int	zbx_module_neustar_monitor_status(AGENT_REQUEST *request, AGENT_RESULT *resu
 
     char service[] = "/monitor";
     char method[] = "";
-    char monitorURL[150];
+    char monitorURL[156];
     makeURL(monitorURL, api_key, api_secret, service, method);
 
-    char *monitors;
-    monitors = httpGet(monitorURL);
+    char monitors[1024*32];
+    httpGet(monitorURL, monitors);
 
     if (strcmp("CURL_ERROR", monitors) != 0) {
-        char *monitor_id = getMonitorID(monitors, monitor_key, monitor_id);
+        char monitor_id[128];
+        getMonitorID(monitors, monitor_key, monitor_id);
         if (strcmp(monitor_id, "JSON_FAILURE") != 0) {
-            char method2[50];
+            char method2[48];
             strcpy(method2, "/");
             strcat(method2, monitor_id);
             strcat(method2, "/summary");
-            char summaryURL[150];
+            char summaryURL[156];
             makeURL(summaryURL, api_key, api_secret, service, method2);
 
-            char *summary;
-            summary = httpGet(summaryURL);
+            char summary[1024*2]; //TODO: Dynamic allocation
+            httpGet(summaryURL, summary);
             if (strcmp("CURL_ERROR", summary) != 0) {
                 char status[16];
-                strcpy(status, getLastStatus(summary));
+                getLastStatus(summary, status);
                 if (strcmp(status, "JSON_FAILURE") != 0) {
                     if (strcmp(status, "SUCCESS") == 0) {
                         SET_UI64_RESULT(result, 1);
@@ -197,24 +201,25 @@ void makeSig(const char api_key[], const char api_secret[], char *signature)
     strcpy(signature, sigMD5);
 }
 
-char *getLastStatus(const char *curl_ret)
+void getLastStatus(const char *curl_ret, char* status)
 {
     cJSON * json_root = cJSON_Parse(curl_ret);
     if (!json_root) {
-        return "JSON_FAILURE";
+        strcpy(status, "JSON_FAILURE");
     } else {
         cJSON * json_data = cJSON_GetObjectItem(json_root,"data");
         cJSON * json_items = cJSON_GetObjectItem(json_data,"items");
         cJSON * json_items_child = cJSON_GetArrayItem(json_items, 0);
         if (strcmp(cJSON_GetObjectItem(json_items_child, "status")->valuestring, "Off") != 0) {
-            return cJSON_GetObjectItem(json_items_child, "generalStatus")->valuestring;
+            strcpy(status, cJSON_GetObjectItem(json_items_child, "generalStatus")->valuestring);
         } else {
-            return "INACTIVE";
+            strcpy(status, "INACTIVE");
         }
     }
+    cJSON_Delete(json_root);
 }
 
-void *makeURL(char* fullURL, const char api_key[], const char api_secret[], const char service[], const char method[])
+void makeURL(char* fullURL, const char api_key[], const char api_secret[], const char service[], const char method[])
 {
     char sig[100];
     makeSig(api_key, api_secret, sig);
@@ -231,11 +236,12 @@ void *makeURL(char* fullURL, const char api_key[], const char api_secret[], cons
     strcat(fullURL, sig);
 }
 
-char *getMonitorID(const char *curl_ret, const char *key, char *monitor_id)
+void getMonitorID(const char *curl_ret, const char *key, char *monitor_id)
 {
+    int check = 0;
     cJSON * json_root = cJSON_Parse(curl_ret);
     if (!json_root) {
-        return "JSON_FAILURE";
+        strcpy(monitor_id, "JSON_FAILURE");
     } else {
         cJSON * json_data = cJSON_GetObjectItem(json_root,"data");
         cJSON * json_items = cJSON_GetObjectItem(json_data,"items");
@@ -245,27 +251,27 @@ char *getMonitorID(const char *curl_ret, const char *key, char *monitor_id)
             while (monitor) {
                 if (cJSON_GetObjectItem(monitor, "description")) {
                     if (strcmp(cJSON_GetObjectItem(monitor, "description")->valuestring, key) == 0) {
-                        monitor_id = cJSON_GetObjectItem(monitor, "id")->valuestring;
+                        strcpy(monitor_id, cJSON_GetObjectItem(monitor, "id")->valuestring);
+                        check = 1;
                         break;
                     }
                 }
                 monitor = monitor->next;
             }
-            if (strcmp(monitor_id, "NULL") == 0) {
+            if (check == 0) {
                 json_items = json_items->next;
             } else {
                 break;
             }
         }
-        return monitor_id;
+        cJSON_Delete(json_root);
     }
 }
 
-char *httpGet(const char *url)
+void httpGet(const char* url, char* curl_ret)
 {
     CURL *curl_handle;
     CURLcode res;
-    char *ret;
 
     struct MemoryStruct chunk;
 
@@ -304,13 +310,13 @@ char *httpGet(const char *url)
 
     /* check for errors */
     if(res != CURLE_OK) {
-        ret = "CURL_ERROR";
+        strcpy(curl_ret, "CURL_ERROR");
         // fprintf(stderr, "count: %d\n", count);
         // fprintf(stderr, "curl_easy_perform() failed: %s\n",
         //         curl_easy_strerror(res));
     } else {
         // fprintf(stderr, "count: %d\n", count);
-        ret = chunk.memory;
+        strcpy(curl_ret, chunk.memory);
         /*
          * Now, our chunk.memory points to a memory block that is chunk.size
          * bytes big and contains the remote file.
@@ -328,8 +334,6 @@ char *httpGet(const char *url)
 
     /* we're done with libcurl, so clean it up */
     curl_global_cleanup();
-
-    return ret;
 }
 
 static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
