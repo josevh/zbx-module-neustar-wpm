@@ -224,7 +224,7 @@ void makeURL(char* fullURL, const char api_key[], const char api_secret[], const
     char sig[100];
     makeSig(api_key, api_secret, sig);
     // prep url
-    const char baseURL[] = "http://api.neustar.biz/performance";
+    const char baseURL[] = "http://api.sec.neustar.biz/performance";
     const char version[] = "/1.0";
     strcpy(fullURL, baseURL);
     strcat(fullURL, service);
